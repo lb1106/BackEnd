@@ -1,0 +1,26 @@
+{% for table in tables %}
+CREATE {% if table.external == 'true' %} EXTERNAL {% endif %} TABLE IF NOT EXISTS {{ table.name }} ( {{ table.fields }})
+    PARTITIONED BY ( {{ table.partition }} )
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '{{ table.row_delimited }}'
+    LINES TERMINATED BY '{{ table.line_terminated }}' 
+    LOCATION '{{ table.location }}';
+ALTER TABLE {{ table.name }} RECOVER PARTITIONS;
+{% if table.newload == 'true' %}
+LOAD DATA LOCAL INPATH '{{ table.datapath }}' INTO TABLE {{ table.name }} PARTITION(date = '{{ table.new_partition_date }}' );
+{% endif %}
+{% endfor %}
+
+{% if function_add == 'true' %}
+{% for function in functions %}
+add jar {{ function.jar }};
+create temporary function {{ function.name }} as '{{ function.classname }}';
+{% endfor %}
+{% endif %}
+
+{% if moreAct == 'true' %}
+{% for Act in Acts %}
+INSERT OVERWRITE TABLE {{ Act.des_table }} PARTITION ( {{ Act.partition_info }})
+SELECT {{ Act.select_fields}} from {{ Act.src_table }} WHERE  {{ Act.condition }} {% if Act.group == 'true' %} GROUP BY {{ Act.group_by }} {% endif %};
+{% endfor %}
+{% endif %}
+
